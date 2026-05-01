@@ -107,16 +107,20 @@ def render(data: pd.DataFrame, cfg: dict) -> None:
                       opacity=0.5, row=3, col=1)
 
     # — Layout —
-    layout = dict(
-        **PLOTLY_LAYOUT,
-        height=700,
-        xaxis_rangeslider_visible=False,
-        yaxis=dict(title="Price (₹)", gridcolor="#1e2230"),
-        yaxis2=dict(title="Volume",   gridcolor="#1e2230"),
-        yaxis3=dict(title="RSI",      gridcolor="#1e2230", range=[0, 100]),
-    )
-    fig.update_layout(**layout)
-    st.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(
+    template="plotly_dark",
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="#0e1117",
+    font=dict(family="JetBrains Mono, Courier New, monospace", size=11, color="#c9d1d9"),
+    margin=dict(l=0, r=0, t=30, b=0),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    hoverlabel=dict(bgcolor="#1a1e2e", bordercolor="#2a2e39", font_size=12),
+    height=700,
+    xaxis_rangeslider_visible=False,
+    yaxis=dict(title="Price (₹)", gridcolor="#1e2230"),
+    yaxis2=dict(title="Volume",   gridcolor="#1e2230"),
+    yaxis3=dict(title="RSI",      gridcolor="#1e2230", range=[0, 100]),
+)
 
     # ── News / Research Link ────────────────────────────────────────────────
     section_header("Market Intel")
