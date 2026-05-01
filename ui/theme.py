@@ -2,7 +2,9 @@ import streamlit as st
 
 _CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
 * { font-family: 'Inter', sans-serif !important; }
+
 .block-container { padding-top: 1rem; padding-bottom: 2rem; }
 [data-testid="stMetricValue"] { font-size: 1.25rem !important; color: #00ffcc; }
 [data-testid="stMetricLabel"] { font-size: 0.72rem !important; color: #8892a4; }
@@ -15,6 +17,7 @@ _CSS = """
 .qt-warn { border-left-color: #f0c040; }
 .qt-danger { border-left-color: #ff4b6e; }
 .qt-section { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: #8892a4; margin: 18px 0 8px 0; }
+.qt-help { font-size: 0.74rem; color: #636e7b; font-style: italic; }
 .news-card { background: #11141d; border: 1px solid #2a2e39; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; }
 .news-title { font-size: 0.88rem; font-weight: 500; color: #e6edf3; }
 .news-meta  { font-size: 0.75rem; color: #8892a4; margin-top: 4px; }
@@ -24,27 +27,15 @@ hr { border-color: #2a2e39 !important; }
 def inject_css() -> None:
     st.markdown(f"<style>{_CSS}</style>", unsafe_allow_html=True)
 
-def apply_layout(fig, height=400, **kwargs):
-    """
-    Apply base theme first, then per-chart overrides separately.
-    Two calls = zero conflict, guaranteed.
-    """
-    fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="#0e1117",
-        font=dict(family="Inter, sans-serif", size=11, color="#c9d1d9"),
-        margin=dict(l=0, r=0, t=30, b=0),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        hoverlabel=dict(bgcolor="#1a1e2e", bordercolor="#2a2e39", font_size=12),
-        height=height,
-    )
-    if kwargs:
-        fig.update_layout(**kwargs)
-    return fig
-
-# Keep for any legacy references
-PLOTLY_LAYOUT = {}
+PLOTLY_LAYOUT = dict(
+    template="plotly_dark",
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="#0e1117",
+    font=dict(family="Inter, sans-serif", size=11, color="#c9d1d9"),
+    margin=dict(l=0, r=0, t=30, b=0),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    hoverlabel=dict(bgcolor="#1a1e2e", bordercolor="#2a2e39", font_size=12),
+)
 
 CYAN   = "#00ffcc"
 BLUE   = "#00ccff"
