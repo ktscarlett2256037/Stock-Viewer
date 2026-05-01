@@ -23,8 +23,8 @@ def render_sidebar() -> dict:
         st.markdown("### ⚙️ Terminal Settings")
         st.divider()
 
-        api_key   = st.text_input("Alpha Vantage API Key", type="password",
-                                  help="Get a free key at alphavantage.co")
+    "api_key": ""
+    
         demo_mode = st.checkbox("Demo Mode (random data)", value=not bool(api_key))
 
         st.divider()
