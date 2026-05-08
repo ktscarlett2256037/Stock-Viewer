@@ -1,5 +1,5 @@
 """
-Quantum Intelligence Terminal
+Stock-Dash
 ==============================
 Entry point. Handles sidebar config, data loading, and tab routing.
 All business logic lives in analytics/, data/, ui/, and tabs/.
@@ -43,7 +43,7 @@ if price_data is None:
     st.stop()
 
 # ── Header & KPI Ribbon ──────────────────────────────────────────────────────
-st.markdown(f"## 🚀 Quantum Intelligence Terminal &nbsp; `{cfg['ticker']}`")
+st.markdown(f"## 🚀 Stock-Dash &nbsp; `{cfg['ticker']}`")
 render_kpi_ribbon(price_data, meta)
 st.divider()
 

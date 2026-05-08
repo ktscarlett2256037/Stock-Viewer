@@ -22,7 +22,8 @@ def _fetch_news(symbol: str) -> list[dict]:
         return []
 
 
-def render(data: pd.DataFrame, cfg: dict) -> None:
+from data.fetcher import get_company_name
+    company_name = get_company_name(cfg["ticker"])
     returns  = daily_returns(data["close"])
     ltp      = data["close"].iloc[-1]
     ma20     = sma(data["close"], 20).iloc[-1]
@@ -138,6 +139,5 @@ def render(data: pd.DataFrame, cfg: dict) -> None:
     else:
         callout("📰 News headlines are available in live mode (disable Demo Mode).", "info")
 
-    ticker_clean = cfg["ticker"].replace(".NS", "").replace(".BO", "")
-    st.link_button("🔍 More news on Google", 
-                   f"https://news.google.com/search?q={ticker_clean}+NSE+stock&hl=en-IN")
+   st.link_button("🔍 More news on Google",
+                   f"https://news.google.com/search?q={company_name.replace(' ', '+')}+stock+India&hl=en-IN")
