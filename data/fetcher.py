@@ -11,7 +11,7 @@ from config import HORIZON_DAYS
 from data.mock import make_demo_ohlcv, make_demo_meta
 
 
-@st.cache_data(ttl=3600, show_spinner="Fetching price data…")
+@st.cache_resource(ttl=86400, show_spinner="Fetching price data…")
 def fetch_ohlcv(
     symbol: str,
     api_key: str,          # kept for signature compatibility, not used
@@ -75,7 +75,7 @@ def fetch_ohlcv(
         return None, {}
 
 
-@st.cache_data(ttl=3600, show_spinner="Fetching benchmark…")
+@st.cache_resource(ttl=86400, show_spinner="Fetching benchmark…")
 def fetch_benchmark(
     symbol: str,
     api_key: str,

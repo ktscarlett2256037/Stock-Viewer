@@ -1,6 +1,5 @@
 """
 ui/components.py — Reusable widgets shared across tabs.
-Nothing here does any calculation — pure presentation glue.
 """
 
 import pandas as pd
@@ -31,11 +30,16 @@ def render_sidebar() -> dict:
 
         st.divider()
         st.markdown("**Risk Parameters**")
-        rf_rate   = st.number_input(
+        rf_rate = st.number_input(
             "Risk-Free Rate (%)", min_value=0.0, max_value=20.0,
             value=DEFAULT_RISK_FREE_RATE * 100, step=0.25,
             help="Used for Sharpe / Sortino / Jensen's Alpha calculations."
         ) / 100
+
+        st.divider()
+        if st.button("🔄 Refresh Data", use_container_width=True):
+            st.cache_resource.clear()
+            st.rerun()
 
     return {
         "ticker":    ticker,
@@ -48,10 +52,9 @@ def render_sidebar() -> dict:
 
 
 def render_kpi_ribbon(data: pd.DataFrame, meta: dict) -> None:
-    curr  = data["close"].iloc[-1]
-    prev  = data["close"].iloc[-2] if len(data) > 1 else curr
-    delta = (curr - prev) / prev * 100
-
+    curr       = data["close"].iloc[-1]
+    prev       = data["close"].iloc[-2] if len(data) > 1 else curr
+    delta      = (curr - prev) / prev * 100
     avg_vol    = data["volume"].tail(20).mean()
     curr_vol   = data["volume"].iloc[-1]
     vol_surgeX = curr_vol / avg_vol if avg_vol else 1
@@ -71,7 +74,7 @@ def render_kpi_ribbon(data: pd.DataFrame, meta: dict) -> None:
 def section_header(title: str, help_text: str = "") -> None:
     st.markdown(
         f'<p class="qt-section">{title}'
-        + (f' <span class="qt-help" title="{help_text}">ⓘ</span>' if help_text else "")
+        + (f' <span title="{help_text}">ⓘ</span>' if help_text else "")
         + "</p>",
         unsafe_allow_html=True,
     )
