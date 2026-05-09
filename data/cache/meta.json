@@ -1,0 +1,26 @@
+{
+  "updated_at": "2026-05-09T10:16:01.693751",
+  "tickers": [
+    "SBIN.NS",
+    "RELIANCE.NS",
+    "TCS.NS",
+    "INFY.NS",
+    "HDFCBANK.NS",
+    "ICICIBANK.NS",
+    "AXISBANK.NS",
+    "KOTAKBANK.NS",
+    "LT.NS",
+    "WIPRO.NS",
+    "BAJFINANCE.NS",
+    "MARUTI.NS",
+    "TATAMOTORS.NS",
+    "ITC.NS",
+    "SUNPHARMA.NS",
+    "^NSEI",
+    "^NSEBANK",
+    "^BSESN",
+    "^INDIAVIX",
+    "BZ=F",
+    "USDINR=X"
+  ]
+}
