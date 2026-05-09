@@ -13,7 +13,7 @@ from tabs import tab1_pulse, tab2_risk, tab3_alpha, tab4_macro, tab5_portfolio
 
 # ── Page config (must be first Streamlit call) ──────────────────────────────
 st.set_page_config(
-    page_title="Quantum Terminal",
+    page_title="Stock-Dash",
     page_icon="🚀",
     layout="wide",
     initial_sidebar_state="collapsed",
