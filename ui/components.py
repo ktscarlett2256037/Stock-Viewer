@@ -28,7 +28,8 @@ def render_sidebar() -> dict:
             help="Indian 10Y bond yield approximation"
         ) / 100
 
-        demo_mode = st.toggle("Demo Mode", value=False,
+        st.caption("🔴 Live mode fetches real NSE data. Demo mode uses synthetic data and never rate-limits.")
+        demo_mode = st.toggle("Demo Mode", value=True,
                               help="Use synthetic data instead of live Yahoo Finance feed")
 
         st.divider()
