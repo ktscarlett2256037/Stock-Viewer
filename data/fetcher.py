@@ -1,15 +1,10 @@
 from __future__ import annotations
-import time
-import json
 import numpy as np
 import pandas as pd
-from pathlib import Path
 import streamlit as st
 import yfinance as yf
 from config import HORIZON_DAYS
 from data.mock import make_demo_ohlcv, make_demo_meta
-
-CACHE_DIR = Path(__file__).parent / "cache"
 
 COMPANY_NAMES = {
     "SBIN.NS": "State Bank of India", "RELIANCE.NS": "Reliance Industries",
@@ -26,47 +21,41 @@ def get_company_name(symbol: str) -> str:
     if symbol in COMPANY_NAMES:
         return COMPANY_NAMES[symbol]
     try:
-        name = yf.Ticker(symbol).info.get("longName")
-        if name:
-            return name
+        return yf.Ticker(symbol).info.get("longName") or symbol.replace(".NS","")
+    except Exception:
+        return symbol.replace(".NS", "").replace(".BO", "")
+
+def _get_session():
+    """Chrome-impersonating session via curl_cffi — bypasses Yahoo Finance bot detection."""
+    from curl_cffi import requests as cffi_requests
+    return cffi_requests.Session(impersonate="chrome110")
+
+def _fetch(symbol: str, period: str, interval: str) -> pd.DataFrame:
+    """
+    Use Ticker.history() with a curl_cffi session.
+    This is what working Yahoo Finance apps use — passes full Chrome fingerprint.
+    """
+    try:
+        session = _get_session()
+        ticker  = yf.Ticker(symbol, session=session)
+        df      = ticker.history(period=period, interval=interval, auto_adjust=True)
+        if not df.empty:
+            return df
     except Exception:
         pass
-    return symbol.replace(".NS", "").replace(".BO", "")
 
-def _cache_path(symbol: str) -> Path:
-    safe = symbol.replace(".", "_").replace("^", "").replace("=", "")
-    return CACHE_DIR / f"{safe}.csv"
-
-def _read_cache(symbol: str) -> pd.DataFrame:
-    """Read from the GitHub-committed cache CSV. Returns empty df if missing."""
-    p = _cache_path(symbol)
-    if not p.exists():
-        return pd.DataFrame()
+    # Plain fallback (no session) — works when IP isn't blocked
     try:
-        df = pd.read_csv(p, index_col=0, parse_dates=True)
-        df.index.name = "Date"
-        df = df.reset_index()
-        df["Date"] = pd.to_datetime(df["Date"]).dt.tz_localize(None)
-        df.columns = [c.lower() if c != "Date" else c for c in df.columns]
-        return df[["Date","open","high","low","close","volume"]].dropna()
+        ticker = yf.Ticker(symbol)
+        df     = ticker.history(period=period, interval=interval, auto_adjust=True)
+        if not df.empty:
+            return df
     except Exception:
-        return pd.DataFrame()
+        pass
 
-def _download_live(symbol: str, period: str, interval: str) -> pd.DataFrame:
-    for attempt in range(3):
-        try:
-            df = yf.download(symbol, period=period, interval=interval,
-                             progress=False, auto_adjust=True)
-            if not df.empty:
-                return df
-        except Exception:
-            if attempt < 2:
-                time.sleep(8 * (attempt + 1))
     return pd.DataFrame()
 
 def _clean(df: pd.DataFrame) -> pd.DataFrame:
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
     df = df.reset_index().rename(columns={
         "Date": "Date", "Datetime": "Date",
         "Open": "open", "High": "high",
@@ -74,98 +63,81 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     })
     df["Date"] = pd.to_datetime(df["Date"]).dt.tz_localize(None)
     keep = [c for c in ["Date","open","high","low","close","volume"] if c in df.columns]
-    return df[keep].dropna()
+    return df[keep].dropna().reset_index(drop=True)
 
 def _slice(df: pd.DataFrame, horizon: str) -> pd.DataFrame:
     n = HORIZON_DAYS.get(horizon, len(df))
     return df.tail(min(n, len(df))).reset_index(drop=True)
 
-@st.cache_resource(ttl=86400, show_spinner="Loading price data…")
-def fetch_ohlcv(symbol: str, api_key: str, horizon: str,
-                is_demo: bool = False) -> tuple[pd.DataFrame | None, dict]:
-    if is_demo:
-        return _slice(make_demo_ohlcv(), horizon), make_demo_meta()
-
-    # Try cache first (committed daily by GitHub Actions)
-    cached = _read_cache(symbol)
-    if not cached.empty:
-        meta = {
-            "h52": cached["high"].tail(252).max(),
-            "l52": cached["low"].tail(252).min(),
-            "mcap": None, "pe": None, "pb": None, "div_yield": None,
-        }
-        try:
-            info = yf.Ticker(symbol).info
-            meta.update({
-                "h52": info.get("fiftyTwoWeekHigh", meta["h52"]),
-                "l52": info.get("fiftyTwoWeekLow",  meta["l52"]),
-                "mcap": info.get("marketCap"),
-                "pe":   info.get("trailingPE"),
-                "pb":   info.get("priceToBook"),
-                "div_yield": round((info.get("dividendYield") or 0) * 100, 2),
-            })
-        except Exception:
-            pass
-        return _slice(cached, horizon), meta
-
-    # Fall back to live fetch
-    period_map = {
-        "Last Day": "1d", "Last Week": "5d", "Last Month": "1mo",
-        "6 Months": "6mo", "1 Year": "1y", "3 Years": "3y",
-        "5 Years": "5y", "MAX": "max",
+def _get_meta(symbol: str, df: pd.DataFrame) -> dict:
+    meta = {
+        "h52": df["high"].tail(252).max(), "l52": df["low"].tail(252).min(),
+        "mcap": None, "pe": None, "pb": None, "div_yield": None,
     }
-    interval = "5m" if horizon == "Last Day" else "1d"
-    raw = _download_live(symbol, period_map.get(horizon, "1y"), interval)
-
-    if raw.empty:
-        st.warning(f"⚠️ No cached or live data for **{symbol}** — showing demo data.")
-        return _slice(make_demo_ohlcv(), horizon), make_demo_meta()
-
-    df = _clean(raw)
-    meta = {"h52": df["high"].max(), "l52": df["low"].min(),
-            "mcap": None, "pe": None, "pb": None, "div_yield": None}
     try:
-        info = yf.Ticker(symbol).info
+        session = _get_session()
+        info    = yf.Ticker(symbol, session=session).info
         meta.update({
-            "h52": info.get("fiftyTwoWeekHigh", df["high"].max()),
-            "l52": info.get("fiftyTwoWeekLow",  df["low"].min()),
-            "mcap": info.get("marketCap"),
-            "pe":   info.get("trailingPE"),
-            "pb":   info.get("priceToBook"),
+            "h52":       info.get("fiftyTwoWeekHigh",  meta["h52"]),
+            "l52":       info.get("fiftyTwoWeekLow",   meta["l52"]),
+            "mcap":      info.get("marketCap"),
+            "pe":        info.get("trailingPE"),
+            "pb":        info.get("priceToBook"),
             "div_yield": round((info.get("dividendYield") or 0) * 100, 2),
         })
     except Exception:
         pass
-    return _slice(df, horizon), meta
+    return meta
 
-@st.cache_resource(ttl=86400, show_spinner="Loading benchmark…")
+@st.cache_resource(ttl=43200, show_spinner="Fetching price data…")
+def fetch_ohlcv(symbol: str, api_key: str, horizon: str,
+                is_demo: bool = False) -> tuple[pd.DataFrame | None, dict]:
+
+    if is_demo:
+        return _slice(make_demo_ohlcv(), horizon), make_demo_meta()
+
+    period_map = {
+        "Last Day":   "1d",  "Last Week":  "5d",
+        "Last Month": "1mo", "6 Months":   "6mo",
+        "1 Year":     "1y",  "3 Years":    "3y",
+        "5 Years":    "5y",  "MAX":        "max",
+    }
+    interval = "5m" if horizon == "Last Day" else "1d"
+    period   = period_map.get(horizon, "1y")
+
+    raw = _fetch(symbol, period, interval)
+
+    if raw.empty:
+        st.warning(f"⚠️ Could not fetch **{symbol}** — check the ticker symbol (e.g. SBIN.NS, RELIANCE.NS)")
+        return _slice(make_demo_ohlcv(), horizon), make_demo_meta()
+
+    df = _clean(raw)
+    return _slice(df, horizon), _get_meta(symbol, df)
+
+@st.cache_resource(ttl=43200, show_spinner="Fetching benchmark…")
 def fetch_benchmark(symbol: str, api_key: str,
                     is_demo: bool = False) -> pd.DataFrame | None:
     if is_demo:
         return make_demo_ohlcv()[["Date","close"]].rename(columns={"close":"bench_close"})
-    cached = _read_cache(symbol)
-    if not cached.empty:
-        return cached[["Date","close"]].rename(columns={"close":"bench_close"})
-    raw = _download_live(symbol, "1y", "1d")
+
+    raw = _fetch(symbol, "1y", "1d")
     if raw.empty:
         return None
     return _clean(raw)[["Date","close"]].rename(columns={"close":"bench_close"})
 
-@st.cache_resource(ttl=86400, show_spinner="Loading macro factors…")
+@st.cache_resource(ttl=43200, show_spinner="Fetching macro factors…")
 def fetch_macro_factors(period: str = "1y", is_demo: bool = False) -> pd.DataFrame:
     if is_demo:
         return _demo_macro()
+
     symbols = {"India_VIX": "^INDIAVIX", "Brent_Crude": "BZ=F", "USD_INR": "USDINR=X"}
-    frames = {}
+    frames  = {}
     for name, sym in symbols.items():
-        cached = _read_cache(sym)
-        if not cached.empty:
-            frames[name] = cached[["Date","close"]].rename(columns={"close": name}).set_index("Date")
-        else:
-            raw = _download_live(sym, period, "1d")
-            if not raw.empty:
-                df = _clean(raw)[["Date","close"]].rename(columns={"close": name})
-                frames[name] = df.set_index("Date")
+        raw = _fetch(sym, period, "1d")
+        if not raw.empty:
+            df = _clean(raw)[["Date","close"]].rename(columns={"close": name})
+            frames[name] = df.set_index("Date")
+
     if not frames:
         return _demo_macro()
     combined = pd.concat(frames.values(), axis=1).ffill().dropna()
@@ -177,7 +149,7 @@ def _demo_macro() -> pd.DataFrame:
     n    = len(base)
     return pd.DataFrame({
         "Date": base["Date"],
-        "India_VIX":   rng.normal(0.0, 0.05, n).cumsum() + 15,
+        "India_VIX":   rng.normal(0.0,    0.05,  n).cumsum() + 15,
         "Brent_Crude": rng.normal(0.0002, 0.012, n).cumsum() + 85,
-        "USD_INR":     rng.normal(0.00005, 0.003, n).cumsum() + 83.5,
+        "USD_INR":     rng.normal(0.00005,0.003, n).cumsum() + 83.5,
     })
