@@ -108,6 +108,57 @@ def render(data: pd.DataFrame, cfg: dict) -> None:
     )
     st.plotly_chart(fig_dd, use_container_width=True)
 
+    # ── GARCH(1,1) Volatility Model ────────────────────────────────────
+    section_header("GARCH(1,1) Volatility Model",
+                   "Proper parametric model. Captures volatility clustering better than EWMA.")
+    try:
+        from arch import arch_model
+        import warnings
+        r_pct = returns * 100
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            garch = arch_model(r_pct.dropna(), vol="Garch", p=1, q=1, dist="normal")
+            res   = garch.fit(disp="off")
+
+        cond_vol = res.conditional_volatility * (252 ** 0.5) / 100
+        omega    = res.params.get("omega", 0)
+        alpha    = res.params.get("alpha[1]", 0)
+        beta_g   = res.params.get("beta[1]", 0)
+        persist  = alpha + beta_g
+
+        g1, g2, g3 = st.columns(3)
+        g1.metric("α (shock sensitivity)", f"{alpha:.4f}",
+                  help="How much yesterday's shock affects today's volatility.")
+        g2.metric("β (vol persistence)", f"{beta_g:.4f}",
+                  help="How much yesterday's volatility carries into today.")
+        g3.metric("α+β (persistence)", f"{persist:.4f}",
+                  delta="High persistence" if persist > 0.95 else "Normal",
+                  help="Close to 1 = volatility is very persistent (long memory).")
+
+        fig_garch = go.Figure()
+        fig_garch.add_trace(go.Scatter(
+            x=data["Date"].iloc[1:], y=cond_vol,
+            line=dict(color=CYAN, width=1.8),
+            fill="tozeroy", fillcolor="rgba(0,255,204,0.07)",
+            name="GARCH(1,1) Conditional Vol",
+        ))
+        apply_layout(fig_garch, height=260,
+            yaxis=dict(title="Annualised Volatility", tickformat=".0%", gridcolor="#1e2230"),
+            xaxis=dict(gridcolor="#1e2230"))
+        st.plotly_chart(fig_garch, use_container_width=True)
+
+        if persist > 0.97:
+            callout("⚠️ Very high persistence (α+β > 0.97) — volatility shocks take a long time to decay. "
+                    "Elevated risk periods are slow to normalise.", "warn")
+        elif persist > 0.90:
+            callout(f"Persistence of {persist:.3f} — moderate volatility memory. "
+                    "Shocks fade over several weeks.", "info")
+        else:
+            callout(f"Persistence of {persist:.3f} — volatility reverts quickly to its long-run mean.", "info")
+
+    except Exception as e:
+        callout(f"GARCH model could not be fitted: {e}", "warn")
+
     section_header("Return Distribution")
     fig_hist = go.Figure()
     fig_hist.add_trace(go.Histogram(

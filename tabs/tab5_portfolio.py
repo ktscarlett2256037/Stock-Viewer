@@ -76,6 +76,45 @@ def render(cfg: dict) -> None:
     c3.metric("Sharpe Ratio",    f"{sharpe:.2f}")
     c4.metric("Diversification", f"{div_b*100:.1f}%")
 
+    # ── Per-stock performance ratios ────────────────────────────────────
+    section_header("Individual Stock Ratios")
+    from analytics.performance import sharpe_ratio, sortino_ratio, jensens_alpha, information_ratio
+    ratio_rows = []
+    bench_rets = None
+    if not cfg.get("demo_mode"):
+        try:
+            bench_df, _ = fetch_ohlcv(cfg["benchmark"], "", "1 Year", is_demo=False)
+            if bench_df is not None:
+                bench_rets = bench_df["close"].pct_change().dropna().reset_index(drop=True)
+        except Exception:
+            pass
+
+    for t in tickers:
+        r = rets_df[t].dropna()
+        row = {"Ticker": t}
+        row["Sharpe"]  = f"{sharpe_ratio(r, cfg['rf_rate']):.2f}"
+        row["Sortino"] = f"{sortino_ratio(r, cfg['rf_rate']):.2f}"
+        if bench_rets is not None:
+            try:
+                alpha, beta = jensens_alpha(r, bench_rets, cfg["rf_rate"])
+                ir          = information_ratio(r, bench_rets)
+                row["Jensen α"] = f"{alpha*100:.2f}%"
+                row["Beta"]     = f"{beta:.2f}"
+                row["Info Ratio"] = f"{ir:.2f}"
+            except Exception:
+                row["Jensen α"] = "—"
+                row["Beta"]     = "—"
+                row["Info Ratio"] = "—"
+        else:
+            row["Jensen α"] = "—"
+            row["Beta"]     = "—"
+            row["Info Ratio"] = "—"
+        ratio_rows.append(row)
+
+    st.dataframe(pd.DataFrame(ratio_rows).set_index("Ticker"), use_container_width=True)
+    callout("Jensen's Alpha = excess return vs benchmark after adjusting for market risk. "
+            "Positive = the stock adds value beyond what the market explains.", "info")
+
     section_header("Risk Contribution")
     fig1 = go.Figure(go.Bar(
         x=tickers, y=risk_c*100,

@@ -20,6 +20,17 @@ h1, h2, h3 { font-size: 1.1rem !important; }
 .news-title { font-size: 0.82rem; font-weight: 500; color: #e6edf3; }
 .news-meta { font-size: 0.70rem; color: #8892a4; margin-top: 3px; }
 hr { border-color: #2a2e39 !important; }
+
+/* Hide the Streamlit default top-left app label */
+[data-testid="stSidebarNav"] { display: none; }
+header[data-testid="stHeader"] { display: none; }
+
+/* Sidebar spacing */
+section[data-testid="stSidebar"] > div { padding-top: 1.5rem; }
+section[data-testid="stSidebar"] .stMarkdown p { margin-bottom: 0.2rem; }
+section[data-testid="stSidebar"] .stSelectbox { margin-bottom: 0.5rem; }
+section[data-testid="stSidebar"] .stTextInput { margin-bottom: 0.5rem; }
+section[data-testid="stSidebar"] .stNumberInput { margin-bottom: 0.5rem; }
 """
 
 def inject_css() -> None:

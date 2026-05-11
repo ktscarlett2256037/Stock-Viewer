@@ -42,6 +42,16 @@ if price_data is None:
     st.error("⚠️ Terminal Connection Error — check your API key or enable Demo Mode.")
     st.stop()
 
+# ── Header with ticker
+from data.fetcher import get_company_name
+company = get_company_name(cfg["ticker"])
+st.markdown(
+    f"<h2 style='margin:0 0 4px 0; font-size:1.4rem;'>📊 Stock-Dash &nbsp;"
+    f"<span style='color:#00ffcc;font-size:1.1rem;'>{cfg["ticker"]}</span> &nbsp;"
+    f"<span style='color:#8892a4;font-size:0.85rem;font-weight:400;'>{company}</span></h2>",
+    unsafe_allow_html=True,
+)
+
 # ── Header & KPI Ribbon ──────────────────────────────────────────────────────
 st.markdown(f"## 🚀 Stock-Dash &nbsp; `{cfg['ticker']}`")
 render_kpi_ribbon(price_data, meta)
