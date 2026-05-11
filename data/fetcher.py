@@ -6,24 +6,24 @@ import yfinance as yf
 from config import HORIZON_DAYS
 from data.mock import make_demo_ohlcv, make_demo_meta
 
-COMPANY_NAMES = {
-    "SBIN.NS": "State Bank of India", "RELIANCE.NS": "Reliance Industries",
-    "TCS.NS": "Tata Consultancy Services", "INFY.NS": "Infosys",
-    "HDFCBANK.NS": "HDFC Bank", "ICICIBANK.NS": "ICICI Bank",
-    "AXISBANK.NS": "Axis Bank", "KOTAKBANK.NS": "Kotak Mahindra Bank",
-    "LT.NS": "Larsen Toubro", "WIPRO.NS": "Wipro",
-    "BAJFINANCE.NS": "Bajaj Finance", "MARUTI.NS": "Maruti Suzuki",
-    "TATAMOTORS.NS": "Tata Motors", "ITC.NS": "ITC Limited",
-    "SUNPHARMA.NS": "Sun Pharmaceutical",
-}
+# Dynamic cache — grows automatically as users look up tickers
+_name_cache: dict[str, str] = {}
 
 def get_company_name(symbol: str) -> str:
-    if symbol in COMPANY_NAMES:
-        return COMPANY_NAMES[symbol]
+    """Look up real company name for any ticker. Cached in memory."""
+    if symbol in _name_cache:
+        return _name_cache[symbol]
     try:
-        return yf.Ticker(symbol).info.get("longName") or symbol.replace(".NS","")
+        session = _get_session()
+        info    = yf.Ticker(symbol, session=session).info
+        name    = (info.get("longName") or info.get("shortName")
+                   or symbol.replace(".NS","").replace(".BO",""))
+        _name_cache[symbol] = name
+        return name
     except Exception:
-        return symbol.replace(".NS", "").replace(".BO", "")
+        fallback = symbol.replace(".NS","").replace(".BO","")
+        _name_cache[symbol] = fallback
+        return fallback
 
 def _get_session():
     """Chrome-impersonating session via curl_cffi — bypasses Yahoo Finance bot detection."""
