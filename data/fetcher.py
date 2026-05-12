@@ -8,10 +8,6 @@ from data.mock import make_demo_ohlcv, make_demo_meta
 
 _name_cache: dict[str, str] = {}
 
-def _session():
-    from curl_cffi import requests as cffi
-    return cffi.Session(impersonate="chrome110")
-
 def get_company_name(symbol: str) -> str:
     if symbol in _name_cache:
         return _name_cache[symbol]
@@ -26,16 +22,6 @@ def get_company_name(symbol: str) -> str:
         return fallback
 
 def _download(symbol: str, period: str, interval: str) -> pd.DataFrame:
-    # Try with curl_cffi Chrome session first
-    try:
-        sess = _session()
-        df = yf.download(symbol, period=period, interval=interval,
-                         session=sess, progress=False, auto_adjust=True)
-        if not df.empty:
-            return df
-    except Exception:
-        pass
-    # Plain fallback
     try:
         df = yf.download(symbol, period=period, interval=interval,
                          progress=False, auto_adjust=True)
@@ -93,7 +79,7 @@ def fetch_ohlcv(symbol: str, api_key: str, horizon: str,
     raw = _download(symbol, period_map.get(horizon, "1y"), interval)
 
     if raw.empty:
-        st.warning(f"⚠️ Could not fetch **{symbol}** — check the ticker (e.g. SBIN.NS)")
+        st.warning(f"⚠️ Could not fetch **{symbol}** — showing demo data. Try again in a few minutes.")
         return _slice(make_demo_ohlcv(), horizon), make_demo_meta()
 
     df = _clean(raw)
