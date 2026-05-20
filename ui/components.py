@@ -29,7 +29,7 @@ def render_sidebar() -> dict:
         ) / 100
 
         st.caption("🔴 Live mode fetches real NSE data. Demo mode uses synthetic data and never rate-limits.")
-        demo_mode = st.toggle("Demo Mode", value=True,
+        demo_mode = st.toggle("Demo Mode", value=False,
                               help="Use synthetic data instead of live Yahoo Finance feed")
 
         st.divider()
